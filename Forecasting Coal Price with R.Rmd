@@ -1,0 +1,734 @@
+---
+title: "HARGA BATU BARA"
+author: "Rafisal Hamdi"
+date: "18/3/2022"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+```
+
+# Library
+
+```{r}
+library(caret)
+library(mlbench)
+library(MASS)
+library(corrplot)
+library(dplyr)
+library(MLmetrics)
+library(writexl)
+library(brnn)
+library(Metrics)
+
+mape <- function(actual,pred){
+  mape <- mean(abs((actual - pred)/actual))*100
+  return (mape)
+}
+```
+
+# Dataframe
+
+```{r}
+library(readxl)
+df <- read_excel("Dataset.xlsx")
+View(df)
+```
+
+# Numeric dan Factor
+
+```{r}
+df$period = as.numeric(df$period)
+df$month = as.factor(df$month)
+df$price_prev_1 = as.numeric(df$price_prev_1)
+df$price_prev_2 = as.numeric(df$price_prev_2)
+df$price_prev_3 = as.numeric(df$price_prev_3)
+df$price_prev_4 = as.numeric(df$price_prev_4)
+df$price_prev_5 = as.numeric(df$price_prev_5)
+df$price_prev_6 = as.numeric(df$price_prev_6)
+df$price_prev_7 = as.numeric(df$price_prev_7)
+df$price_prev_8 = as.numeric(df$price_prev_8)
+df$price_prev_9 = as.numeric(df$price_prev_9)
+df$price_prev_10 = as.numeric(df$price_prev_10)
+df$price_prev_11 = as.numeric(df$price_prev_11)
+df$price_prev_12 = as.numeric(df$price_prev_12)
+df$price = as.numeric(df$price)
+summary(df)
+```
+
+# Dummy
+
+```{r}
+library(fastDummies)
+
+# Create dummy variables:
+df <- dummy_cols(df, select_columns = 'month')
+View(df)
+```
+
+# Splitting Data
+
+```{r}
+df_train = df[1:130,-2]
+df_test = df[131:154,-2]
+```
+
+# View Data
+
+```{r}
+View(df_train)
+View(df_test)
+```
+
+# LM_Training
+## LM_Preproc_None
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+fit.lm1<- train(price~., data=df_train, 
+                method="lm", metric="RMSE", trControl=control)
+# summarize fit
+print(fit.lm1)
+
+#prediction
+lm_pred1_train <- predict(fit.lm1, newdata = df_train)
+print(lm_pred1_train)
+#Find MAPE
+MAPE.lm1_train <- MAPE(lm_pred1_train , y_true = df_train$price)
+print(MAPE.lm1_train)
+```
+
+## LM_Preproc_Scale & Center
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+fit.lm2<- train(price~., data=df_train, 
+                method="lm", metric="RMSE", 
+                preProcess=c("center", "scale"), trControl=control)
+# summarize fit
+print(fit.lm2)
+
+#prediction
+lm_pred2_train <- predict(fit.lm2, newdata = df_train)
+print(lm_pred2_train)
+#Find MAPE
+MAPE.lm2_train <- MAPE(lm_pred2_train , y_true = df_train$price)
+print(MAPE.lm2_train)
+```
+
+# LM_Testing
+```{r}
+#Preprocessing-None
+lm_pred1_test <- predict(fit.lm1, df_test)
+lm_pred1_test
+
+error1.lm <- df_test$price - lm_pred1_test
+RMSE1.lm <- sqrt(mean(error1.lm^2))
+print(RMSE1.lm)
+
+#Find MAPE
+MAPE.lm1_test <- MAPE(lm_pred1_test , y_true = df_test$price)
+print(MAPE.lm1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+lm_pred2_test <- predict(fit.lm2, df_test)
+lm_pred2_test
+
+error2.lm <- df_test$price - lm_pred2_test
+RMSE2.lm <- sqrt(mean(error2.lm^2))
+print(RMSE2.lm)
+
+#Find MAPE
+MAPE.lm2_test <- MAPE(lm_pred2_test , y_true = df_test$price)
+print(MAPE.lm2_test)
+```
+
+
+# EN_Training 
+## Elastic Net_Preprocessing-None
+
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+fit.en1<- train(price~., data=df_train, method="glmnet", metric="RMSE", trControl=control)
+# summarize fit
+print(fit.en1)
+
+#prediction
+en_pred1_train <- predict(fit.en1, newdata = df_train)
+print(en_pred1_train)
+#Find MAPE
+MAPE.en1_train <- MAPE(en_pred1_train , y_true = df_train$price)
+print(MAPE.en1_train)
+```
+
+## Elastic Net_Preprocessing-Center & Scale
+
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+fit.en2<- train(price~., data=df_train, method="glmnet", metric="RMSE", preProcess=c("center", "scale"), trControl=control)
+# summarize fit
+print(fit.en2)
+
+#prediction
+en_pred2_train <- predict(fit.en2, newdata = df_train)
+print(en_pred2_train)
+#Find MAPE
+MAPE.en2_train <- MAPE(en_pred2_train , y_true = df_train$price)
+print(MAPE.en2_train)
+```
+
+# EN_Testing
+
+```{r}
+#Preprocessing-None
+en_pred1_test <- predict(fit.en1, df_test)
+en_pred1_test
+
+error1.en <- df_test$price - en_pred1_test
+RMSE1.en <- sqrt(mean(error1.en^2))
+print(RMSE1.en)
+
+#Find MAPE
+MAPE.en1_test <- MAPE(en_pred1_test , y_true = df_test$price)
+print(MAPE.en1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+en_pred2_test <- predict(fit.en2, df_test)
+en_pred2_test
+
+error2.en <- df_test$price - en_pred2_test
+RMSE2.en <- sqrt(mean(error2.en^2))
+print(RMSE2.en)
+
+#Find MAPE
+MAPE.en2_test <- MAPE(en_pred2_test , y_true = df_test$price)
+print(MAPE.en2_test)
+```
+
+# SVM_Training
+
+## Support Vector Machine_Preprocessing-None
+
+```{r}
+library(LiblineaR)
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.svm1<- train(price~.,data=df_train, method="svmLinear3", metric="RMSE", trControl=control)
+# summarize fit
+print(fit.svm1)
+
+#prediction
+svm_pred1_train <- predict(fit.svm1, newdata = df_train)
+print(svm_pred1_train)
+#Find MAPE
+MAPE.svm1_train <- MAPE(svm_pred1_train , y_true = df_train$price)
+print(MAPE.svm1_train)
+```
+
+## Support Vector Machine_Preprocessing-Center & Scale
+
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.svm2<- train(price~.,data=df_train, method="svmLinear3", metric="RMSE", preProcess=c("center", "scale"), trControl=control)
+# summarize fit
+print(fit.svm2)
+
+#prediction
+svm_pred2_train <- predict(fit.svm2, newdata = df_train)
+print(svm_pred2_train)
+#Find MAPE
+MAPE.svm2_train <- MAPE(svm_pred2_train , y_true = df_train$price)
+print(MAPE.svm2_train)
+```
+
+# SVM_Testing
+
+```{r}
+#Preprocessing-None
+svm_pred1_test <- predict(fit.svm1, df_test)
+svm_pred1_test
+
+error1.svm <- df_test$price - svm_pred1_test
+RMSE1.svm <- sqrt(mean(error1.svm^2))
+print(RMSE1.svm)
+
+#Find MAPE
+MAPE.svm1_test <- MAPE(svm_pred1_test , y_true = df_test$price)
+print(MAPE.svm1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+svm_pred2_test <- predict(fit.svm2, df_test)
+svm_pred2_test
+
+error2.svm <- df_test$price - svm_pred2_test
+RMSE2.svm <- sqrt(mean(error2.svm^2))
+print(RMSE2.svm)
+
+#Find MAPE
+MAPE.svm2_test <- MAPE(svm_pred2_test , y_true = df_test$price)
+print(MAPE.svm2_test)
+```
+
+# NN_Training
+
+## Neural Networks_Preprocessing-None
+
+```{r}
+library(brnn)
+
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.nn1 <- train(price~., data=df_train,
+                 method="brnn", metric="RMSE", trControl=control)
+print(fit.nn1)
+
+#prediction
+nn_pred1_train <- predict(fit.nn1, newdata = df_train)
+print(nn_pred1_train)
+#Find MAPE
+MAPE.nn1_train <- MAPE(nn_pred1_train , y_true = df_train$price)
+print(MAPE.nn1_train)
+```
+
+## Neural Networks_Preprocessing-Center & Scale
+
+```{r}
+library(brnn)
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.nn2<- train(price~.,data=df_train, method="brnn",
+                metric="RMSE", preProcess=c("center", "scale"),
+                trControl=control)
+
+print(fit.nn2)
+
+#prediction
+nn_pred2_train <- predict(fit.nn2, newdata = df_train)
+print(nn_pred2_train)
+#Find MAPE
+MAPE.nn2_train <- MAPE(nn_pred2_train , y_true = df_train$price)
+print(MAPE.nn2_train)
+```
+
+# NN_Testing
+
+```{r}
+#Preprocessing-None
+nn_pred1_test <- predict(fit.nn1, df_test)
+nn_pred1_test
+
+error1.nn <- df_test$price - nn_pred1_test
+RMSE1.nn <- sqrt(mean(error1.nn^2))
+print(RMSE1.nn)
+
+#Find MAPE
+MAPE.nn1_test <- MAPE(nn_pred1_test , y_true = df_test$price)
+print(MAPE.nn1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+nn_pred2_test <- predict(fit.nn2, df_test)
+nn_pred2_test
+
+error2.nn <- df_test$price - nn_pred2_test
+RMSE2.nn <- sqrt(mean(error2.nn^2))
+print(RMSE2.nn)
+
+#Find MAPE
+MAPE.nn2_test <- MAPE(nn_pred2_test , y_true = df_test$price)
+print(MAPE.nn2_test)
+```
+
+
+# GBM_Training
+## GBM_Preproc_None
+```{r}
+library(xgboost)
+
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.gbm1 <- train(price~., data=df_train,
+                 method="xgbLinear", metric="RMSE", trControl=control)
+print(fit.gbm1)
+
+#prediction
+gbm_pred1_train <- predict(fit.gbm1, newdata = df_train)
+print(gbm_pred1_train)
+#Find MAPE
+MAPE.gbm1_train <- MAPE(gbm_pred1_train , y_true = df_train$price)
+print(MAPE.gbm1_train)
+```
+
+
+## GBM_Preproc_Scale & Center
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.gbm2 <- train(price~., data=df_train,
+                  method="xgbLinear", metric="RMSE", 
+                  preProcess=c("center", "scale"), trControl=control)
+print(fit.gbm2)
+
+#prediction
+gbm_pred2_train <- predict(fit.gbm2, newdata = df_train)
+print(gbm_pred2_train)
+#Find MAPE
+MAPE.gbm2_train <- MAPE(gbm_pred2_train , y_true = df_train$price)
+print(MAPE.gbm2_train)
+```
+
+# GBM_Testing
+```{r}
+#Preprocessing-None
+gbm_pred1_test <- predict(fit.gbm1, df_test)
+gbm_pred1_test
+
+error1.gbm <- df_test$price - gbm_pred1_test
+RMSE1.gbm <- sqrt(mean(error1.gbm^2))
+print(RMSE1.gbm)
+
+#Find MAPE
+MAPE.gbm1_test <- MAPE(gbm_pred1_test , y_true = df_test$price)
+print(MAPE.gbm1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+gbm_pred2_test <- predict(fit.gbm1, df_test)
+gbm_pred2_test
+
+error2.gbm <- df_test$price - gbm_pred2_test
+RMSE2.gbm <- sqrt(mean(error2.gbm^2))
+print(RMSE2.gbm)
+
+#Find MAPE
+MAPE.gbm2_test <- MAPE(gbm_pred2_test , y_true = df_test$price)
+print(MAPE.gbm2_test)
+```
+
+
+# RF_Training
+## RF_Preproc_None
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.rf1 <- train(price~., data=df_train,
+                 method="rf", metric="RMSE", trControl=control)
+print(fit.rf1)
+
+#prediction
+rf_pred1_train <- predict(fit.rf1, newdata = df_train)
+print(rf_pred1_train)
+#Find MAPE
+MAPE.rf1_train <- MAPE(rf_pred1_train , y_true = df_train$price)
+print(MAPE.rf1_train)
+```
+
+
+## RF_Preproc_Scale & Center
+```{r}
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+fit.rf2 <- train(price~., data=df_train,
+                 method="rf", metric="RMSE", 
+                 preProcess=c("center", "scale"), trControl=control)
+print(fit.rf2)
+
+#prediction
+rf_pred2_train <- predict(fit.rf2, newdata = df_train)
+print(rf_pred2_train)
+#Find MAPE
+MAPE.rf2_train <- MAPE(rf_pred2_train , y_true = df_train$price)
+print(MAPE.rf2_train)
+```
+
+# RF_Testing
+```{r}
+#Preprocessing-None
+rf_pred1_test <- predict(fit.rf1, df_test)
+rf_pred1_test
+
+error1.rf <- df_test$price - rf_pred1_test
+RMSE1.rf <- sqrt(mean(error1.rf^2))
+print(RMSE1.rf)
+
+#Find MAPE
+MAPE.rf1_test <- MAPE(rf_pred1_test , y_true = df_test$price)
+print(MAPE.rf1_test)
+```
+
+```{r}
+#Preprocessing-Scale & Center
+rf_pred2_test <- predict(fit.rf2, df_test)
+rf_pred2_test
+
+error2.rf <- df_test$price - rf_pred2_test
+RMSE2.rf <- sqrt(mean(error2.rf^2))
+print(RMSE2.rf)
+
+#Find MAPE
+MAPE.rf2_test <- MAPE(rf_pred2_test , y_true = df_test$price)
+print(MAPE.rf2_test)
+```
+
+
+#ARIMA
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(forecast)
+ 
+coal <- read_excel("Ini Dataset.xlsx")
+coal$month<-as.Date(as.character(coal$month), format = "%Y-%m-%d")
+ 
+View(coal)
+ 
+coal%>%ggplot(aes(x=month, y=price))+geom_point()+geom_line()+ggtitle("Price Across Time")
+
+```
+
+```{r}
+coal_train = coal[1:130,]
+coal_test = coal[131:154,]
+```
+
+```{r}
+coal_ts <- ts(coal$price, start = c(2009, 1), end = c(2019, 10), frequency = 12)
+ArimaModel <- auto.arima((coal_ts), D=1)
+summary(ArimaModel)
+checkresiduals(ArimaModel)
+```
+
+```{r}
+fore_arima = forecast::forecast(ArimaModel, h=24)
+df_arima = as.data.frame(fore_arima)
+coal_test$arima = df_arima$`Point Forecast`
+mape(coal_test$price, coal_test$arima)
+rmse(coal_test$price, coal_test$arima)
+```
+
+```{r}
+coal_test$arima
+
+plot(coal_test$arima,
+main="ARIMA Forecasting test",
+ylab="price",
+type="l",
+col="red")
+```
+
+```{r}
+training_model <- data.frame(en_pred2_train,
+                             svm_pred1_train,
+                             nn_pred1_train,
+                             df_train$price)
+
+test_model <- data.frame(en_pred2_test,
+                         svm_pred1_test,
+                         nn_pred1_test,
+                         df_test$price)
+```
+
+```{r}
+write_xlsx(training_model, "C:\\Users\\Asus A409FJ\\Documents\\TA\\WADAH PIKIR\\training model.xlsx")
+
+write_xlsx(test_model, "C:\\Users\\Asus A409FJ\\Documents\\TA\\WADAH PIKIR\\test model.xlsx")
+```
+
+# Stacking-based
+
+```{r}
+library(readxl)
+df_stack <- read_excel("stacking_dataframe.xlsx")
+View(df_stack)
+```
+
+
+```{r}
+stack_train = df_stack[1:130,]
+stack_test = df_stack[131:154,]
+
+View(stack_train)
+View(stack_test)
+```
+
+
+## Elastic Network_None_Stack
+```{r}
+#Elastic Net
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+
+fit.en1_stack<- train(price~., data=stack_train, method="glmnet",
+                      metric="RMSE", trControl=control)
+# summarize fit
+print(fit.en1_stack)
+
+#prediction
+en.stack_pred1 <- predict(fit.en1_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.en.stack_pred1 <- MAPE(en.stack_pred1 , y_true = stack_train$price)
+print(MAPE.en.stack_pred1)
+```
+
+## Elastic Network_Scale & Center_Stack
+
+```{r}
+#Elastic Net
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = TRUE)
+
+fit.en2_stack<- train(price~., data=stack_train, method="glmnet",
+                      metric="RMSE", preProcess=c("center", "scale"),
+                      trControl=control)
+# summarize fit
+print(fit.en2_stack)
+
+#prediction
+en.stack_pred2 <- predict(fit.en2_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.en.stack_pred2 <- MAPE(en.stack_pred2 , y_true = stack_train$price)
+print(MAPE.en.stack_pred2)
+```
+
+## Test_Elastic Network
+
+```{r}
+#Preprocessing-None
+stack.en_p1_test <- predict(fit.en1_stack, stack_test)
+stack.en_p1_test
+
+mape(stack_test$price, stack.en_p1_test)
+rmse(stack_test$price, stack.en_p1_test)
+```
+
+```{r}
+#Scale & Center
+stack.en_p2_test <- predict(fit.en2_stack, stack_test)
+stack.en_p2_test
+
+mape(stack_test$price, stack.en_p2_test)
+rmse(stack_test$price, stack.en_p2_test)
+```
+
+## SVM_None_Stack
+
+```{r}
+#SVM
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+
+fit.svm1_stack<- train(price~., data=stack_train, method="svmLinear3",
+                      metric="RMSE", trControl=control)
+# summarize fit
+print(fit.svm1_stack)
+
+#prediction
+svm.stack_pred1 <- predict(fit.svm1_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.svm.stack_pred1 <- MAPE(svm.stack_pred1 , y_true = stack_train$price)
+print(MAPE.svm.stack_pred1)
+```
+
+## SVM_Scale & Center_Stack
+
+```{r}
+#SVM
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+
+fit.svm2_stack<- train(price~., data=stack_train, method="svmLinear3",
+                       metric="RMSE", preProcess=c("center", "scale"),
+                       trControl=control)
+# summarize fit
+print(fit.svm2_stack)
+
+#prediction
+svm.stack_pred2 <- predict(fit.svm2_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.svm.stack_pred2 <- MAPE(svm.stack_pred2 , y_true = stack_train$price)
+print(MAPE.svm.stack_pred2)
+```
+
+## Test_SVM
+
+```{r}
+#Preprocessing-None
+stack.svm_p1_test <- predict(fit.svm1_stack, stack_test)
+stack.svm_p1_test
+
+mape(stack_test$price, stack.svm_p1_test)
+rmse(stack_test$price, stack.svm_p1_test)
+```
+
+```{r}
+#Scale & Center
+stack.svm_p2_test <- predict(fit.svm2_stack, stack_test)
+stack.svm_p2_test
+
+mape(stack_test$price, stack.svm_p2_test)
+rmse(stack_test$price, stack.svm_p2_test)
+```
+
+## Neural Net_None_Stack
+
+```{r}
+#Neural Net
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+
+fit.nn1_stack<- train(price~., data=stack_train, method="brnn",
+                metric="RMSE", trControl=control)
+# summarize fit
+print(fit.nn1_stack)
+
+#prediction
+nn.stack_pred1 <- predict(fit.nn1_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.nn.stack_pred1 <- MAPE(nn.stack_pred1 , y_true = stack_train$price)
+print(MAPE.nn.stack_pred1)
+```
+
+## Neural Net_Scale & Center_Stack
+
+```{r}
+#Neural Net
+control <- trainControl(method="timeslice", initialWindow = 11, horizon = 1, fixedWindow = FALSE)
+
+fit.nn2_stack<- train(price~., data=stack_train, method="brnn",
+                metric="RMSE", preProcess=c("center", "scale"),
+                trControl=control)
+# summarize fit
+print(fit.nn2_stack)
+
+#prediction
+nn.stack_pred2 <- predict(fit.nn2_stack, newdata = stack_train)
+
+#Find MAPE
+MAPE.nn.stack_pred2 <- MAPE(nn.stack_pred2 , y_true = stack_train$price)
+print(MAPE.nn.stack_pred2)
+```
+
+## Test_Neural Net_Stack
+
+```{r}
+#Preprocessing-None
+stack.nn_p1_test <- predict(fit.nn1_stack, stack_test)
+stack.nn_p1_test
+
+mape(stack_test$price, stack.nn_p1_test)
+rmse(stack_test$price, stack.nn_p1_test)
+```
+
+```{r}
+#Scale & Center
+stack.nn_p2_test <- predict(fit.nn2_stack, stack_test)
+stack.nn_p2_test
+
+mape(stack_test$price, stack.nn_p2_test)
+rmse(stack_test$price, stack.nn_p2_test)
+```
